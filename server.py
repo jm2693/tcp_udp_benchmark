@@ -59,7 +59,19 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Entry point."""
     args = parse_args()
-    pass
+    
+    proto = args.proto
+    host = args.host
+    port = args.port
+    payload_bytes = args.payload_bytes
+    requests = args.requests
+    clients = args.clients
+    log = args.log
+    
+    if proto == "tcp":
+        run_tcp_server(host, port, log, payload_bytes, requests, clients)
+    else:
+        run_udp_server(host, port, log, payload_bytes, requests, clients)
 
 
 if __name__ == "__main__":
