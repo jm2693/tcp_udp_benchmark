@@ -6,6 +6,11 @@ TCP/UDP echo server boilerplate.
 import argparse
 import json
 import time
+import csv
+import socket
+import threading
+
+CSV_fields = ["proto", "client_id", "client_count", "payload_bytes"]
 
 ##### Suggested helper functions; feel free to modify as needed. #####
 def now_wall() -> float:
@@ -19,13 +24,31 @@ def now_mono() -> float:
 def log_event(fp, event: dict):
     fp.write(json.dumps(event, sort_keys=True) + "\n")
     fp.flush()
+    
+def recv_data(socket, payload_bytes) -> bytes:
+    data = b''
+    return data
 
 ##### Required functions to implement. Do not change signatures. #####
 def run_tcp_server(bind: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
     """Run the TCP server benchmark."""
-    pass
-
+    
+    server_socket = socket.socket()
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((bind, port))
+    server_socket.listen(clients)
+    
+    conn, address = server_socket.accept()
+    
+    while True:
+        data = recv_data(server_socket, payload_bytes)
+        if not data or len(data) < payload_bytes:
+            break
+        
+        conn.sendall(data)
+        
+    conn.close()
 
 def run_udp_server(bind: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
@@ -61,7 +84,7 @@ def main() -> None:
     args = parse_args()
     
     proto = args.proto
-    host = args.host
+    bind = args.bind
     port = args.port
     payload_bytes = args.payload_bytes
     requests = args.requests
@@ -69,9 +92,9 @@ def main() -> None:
     log = args.log
     
     if proto == "tcp":
-        run_tcp_server(host, port, log, payload_bytes, requests, clients)
+        run_tcp_server(bind, port, log, payload_bytes, requests, clients)
     else:
-        run_udp_server(host, port, log, payload_bytes, requests, clients)
+        run_udp_server(bind, port, log, payload_bytes, requests, clients)
 
 
 if __name__ == "__main__":
