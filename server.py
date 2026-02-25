@@ -10,7 +10,7 @@ import csv
 import socket
 import threading
 
-CSV_fields = ["proto", "client_id", "client_count", "payload_bytes"]
+CSV_fields = ["protocol", "client_id", "client_count", "payload_bytes"]
 
 ##### Suggested helper functions; feel free to modify as needed. #####
 def now_wall() -> float:
@@ -27,6 +27,13 @@ def log_event(fp, event: dict):
     
 def recv_data(socket, payload_bytes) -> bytes:
     data = b''
+    while len(data) < payload_bytes:
+        chunk = socket.recv(payload_bytes - len(data))
+        if not chunk: 
+            return data
+        
+        data += chunk
+        
     return data
 
 ##### Required functions to implement. Do not change signatures. #####
@@ -38,6 +45,18 @@ def run_tcp_server(bind: str, port: int, log_path: str,
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((bind, port))
     server_socket.listen(clients)
+    
+    with open(log_path, "w") as log_fp:
+        log_event(log_fp, {
+            "event": "server_start",
+            "protocol": "tcp",
+            "bind": bind,
+            "port": port,
+            "payload_bytes": payload_bytes,
+            "requests": requests,
+            "clients": clients,
+            "timestamp": now_wall()
+        })
     
     def handle_client(client_socket, client_addr) -> None:
         while True:
