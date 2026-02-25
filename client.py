@@ -6,6 +6,17 @@ import argparse
 import json
 import time
 
+CSV_FIELDS = [
+    "protocol",
+    "client_id",
+    "client_count",
+    "payload_bytes",
+    "request_num",
+    "connect_time_ms",
+    "rtt_ms",
+    "timestamp",
+    ]
+
 ##### Suggested helper functions; feel free to modify as needed. #####
 def now_wall() -> float:
     return time.time()
@@ -18,12 +29,25 @@ def now_mono() -> float:
 def log_event(fp, event: dict):
     fp.write(json.dumps(event, sort_keys=True) + "\n")
     fp.flush()
+    
+def recv_data(socket, payload_size) -> bytes:
+    data = b''
+    while len(data) < payload_size:
+        chunk = socket.recv(payload_size - len(data))
+        if not chunk:
+            return data
+        
+        data += chunk
+        
+    return data
 
 ##### Required functions to implement. Do not change signatures. #####
 def run_tcp_client(host: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
     """Run the TCP client benchmark."""
-    pass
+    
+    def client_worker():
+        pass
 
 
 def run_udp_client(host: str, port: int, log_path: str,
