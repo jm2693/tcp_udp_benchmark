@@ -39,16 +39,21 @@ def run_tcp_server(bind: str, port: int, log_path: str,
     server_socket.bind((bind, port))
     server_socket.listen(clients)
     
-    conn, address = server_socket.accept()
-    
+    def handle_client(client_socket, client_addr) -> None:
+        while True:
+            data = recv_data(server_socket, payload_bytes)
+            if not data or len(data) < payload_bytes:
+                break
+            
+            client_socket.sendall(data)
+        
+        client_socket.close()
+        
     while True:
-        data = recv_data(server_socket, payload_bytes)
-        if not data or len(data) < payload_bytes:
-            break
-        
-        conn.sendall(data)
-        
-    conn.close()
+        conn, addr = server_socket.accept()
+        client_thread = threading.Thread(target=handle_client, args=(conn, addr))
+        client_thread.start()
+
 
 def run_udp_server(bind: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
