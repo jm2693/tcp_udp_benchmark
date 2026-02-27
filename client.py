@@ -88,6 +88,22 @@ def run_tcp_client(host: str, port: int, log_path: str,
         t_socket.close()
         with lock:
             results.extend(worker_results)
+            
+    threads = []
+    for i in range(clients):
+        t = threading.Thread(target=client_worker, args=(i,))
+        threads.append(t)
+    
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+        
+    results.sort(key=lambda r: (r["client_id"], r["request_num"]))
+    with open(log_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(results)
 
 def run_udp_client(host: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
