@@ -48,7 +48,7 @@ def run_tcp_server(bind: str, port: int, log_path: str,
     
     def handle_client(client_socket, client_addr) -> None:
         while True:
-            data = recv_data(server_socket, payload_bytes)
+            data = recv_data(client_socket, payload_bytes)
             if not data or len(data) < payload_bytes:
                 break
             
