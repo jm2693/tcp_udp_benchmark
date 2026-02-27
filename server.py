@@ -41,17 +41,18 @@ def run_tcp_server(bind: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
     """Run the TCP server benchmark."""
     
-    server_socket = socket.socket()
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((bind, port))
     server_socket.listen(clients)
     
     def handle_client(client_socket, client_addr) -> None:
-        while True:
-            data = recv_data(client_socket, payload_bytes)
-            if not data or len(data) < payload_bytes:
-                break
-            
+        try:
+            while True:
+                data = recv_data(client_socket, payload_bytes)
+                if not data or len(data) < payload_bytes:
+                    break
+        finally:
             client_socket.sendall(data)
         
         client_socket.close()
@@ -67,12 +68,14 @@ def run_tcp_server(bind: str, port: int, log_path: str,
             "clients": clients,
             "timestamp": now_wall()
         })
-        
-    while True:
-        conn, addr = server_socket.accept()
-        client_thread = threading.Thread(target=handle_client, args=(conn, addr))
-        client_thread.start()
-
+    
+    try:
+        while True:
+            conn, addr = server_socket.accept()
+            client_thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
+            client_thread.start()
+    finally:
+        server_socket.close()
 
 def run_udp_server(bind: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:

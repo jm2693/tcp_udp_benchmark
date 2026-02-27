@@ -9,6 +9,9 @@ import socket
 import csv
 import threading
 
+UDP_MAX = 65535
+UDP_TIMEOUT = 5
+
 CSV_FIELDS = [
     "protocol",
     "client_id",
@@ -19,8 +22,6 @@ CSV_FIELDS = [
     "rtt_ms",
     "timestamp",
     ]
-
-UDP_MAX = 65535
 
 ##### Suggested helper functions; feel free to modify as needed. #####
 def to_ms(time_s):
@@ -118,6 +119,7 @@ def run_udp_client(host: str, port: int, log_path: str,
     def client_worker(client_id):
         worker_results = []
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        client_socket.settimeout(UDP_TIMEOUT)
         
         for req_num in range(requests):
             t_send = now_mono()
