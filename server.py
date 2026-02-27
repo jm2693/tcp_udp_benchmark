@@ -68,10 +68,10 @@ def run_tcp_server(bind: str, port: int, log_path: str,
             "timestamp": now_wall()
         })
         
-        while True:
-            conn, addr = server_socket.accept()
-            client_thread = threading.Thread(target=handle_client, args=(conn, addr))
-            client_thread.start()
+    while True:
+        conn, addr = server_socket.accept()
+        client_thread = threading.Thread(target=handle_client, args=(conn, addr))
+        client_thread.start()
 
 
 def run_udp_server(bind: str, port: int, log_path: str,
@@ -94,14 +94,14 @@ def run_udp_server(bind: str, port: int, log_path: str,
             "timestamp": now_wall()
         })
 
-        while True:
-            data, addr = server_socket.recvfrom(UDP_MAX)
-            if not data:
-                break
-            
-            server_socket.sendto(data, addr)
+    while True:
+        data, addr = server_socket.recvfrom(UDP_MAX)
+        if not data:
+            break
+        
+        server_socket.sendto(data, addr)
 
-        server_socket.close()
+    server_socket.close()
 
 
 def parse_args() -> argparse.Namespace:
