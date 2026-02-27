@@ -6,7 +6,6 @@ TCP/UDP echo server boilerplate.
 import argparse
 import json
 import time
-import csv
 import socket
 import threading
 

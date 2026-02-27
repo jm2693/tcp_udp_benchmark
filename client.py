@@ -5,6 +5,9 @@ TCP/UDP echo client boilerplate.
 import argparse
 import json
 import time
+import socket
+import csv
+import threading
 
 CSV_FIELDS = [
     "protocol",
@@ -18,6 +21,10 @@ CSV_FIELDS = [
     ]
 
 ##### Suggested helper functions; feel free to modify as needed. #####
+def to_ms(time_s):
+    return time_s * 1000;
+
+
 def now_wall() -> float:
     return time.time()
 
@@ -45,10 +52,42 @@ def recv_data(socket, payload_size) -> bytes:
 def run_tcp_client(host: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
     """Run the TCP client benchmark."""
-    
-    def client_worker():
-        pass
+        
+    payload = b'\x00' * payload_bytes
+    results = []
+    lock = threading.Lock()
 
+    def client_worker(client_id):
+        worker_results = []
+
+        t_conn_start = now_mono()
+        t_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        t_socket.connect((host, port))
+        t_conn_end = now_mono()
+        connect_time_ms = to_ms(t_conn_end - t_conn_start)
+
+        for req_num in range(requests):
+            t_send = now_mono()
+            t_socket.sendall(payload)
+            response = recv_data(t_socket, payload_bytes)
+            t_recv = now_mono()
+
+            rtt_ms = to_ms(t_recv - t_send)
+
+            worker_results.append({
+                "protocol": "tcp",
+                "client_id": client_id,
+                "client_count": clients,
+                "payload_bytes": payload_bytes,
+                "request_num": req_num,
+                "connect_time_ms": round(connect_time_ms, 4),
+                "rtt_ms": round(rtt_ms, 4),
+                "timestamp": now_wall(),
+            })
+
+        t_socket.close()
+        with lock:
+            results.extend(worker_results)
 
 def run_udp_client(host: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
