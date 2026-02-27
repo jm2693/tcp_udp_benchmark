@@ -20,6 +20,8 @@ CSV_FIELDS = [
     "timestamp",
     ]
 
+UDP_MAX = 65535
+
 ##### Suggested helper functions; feel free to modify as needed. #####
 def to_ms(time_s):
     return time_s * 1000;
@@ -108,8 +110,67 @@ def run_tcp_client(host: str, port: int, log_path: str,
 def run_udp_client(host: str, port: int, log_path: str,
                    payload_bytes: int, requests: int, clients: int) -> None:
     """Run the UDP client benchmark."""
-    pass
+    
+    payload = b'\x00' * payload_bytes
+    results = []
+    lock = threading.Lock()
+    
+    def client_worker(client_id):
+        worker_results = []
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        
+        for req_num in range(requests):
+            t_send = now_mono()
+            client_socket.sendto(payload, (host, port))
+            try:
+                response, _ = client_socket.recvfrom(UDP_MAX)
+            except socket.timeout:
+                worker_results.append({
+                    "protocol": "udp",
+                    "client_id": client_id,
+                    "client_count": clients,
+                    "payload_bytes": payload_bytes,
+                    "request_num": req_num,
+                    "connect_time_ms": 0.0,
+                    "rtt_ms": -1.0,
+                    "timestamp": now_wall(),
+                })
+                continue
+            t_recv = now_mono()
+            
+            rtt_ms = to_ms(t_recv - t_send)
+            worker_results.append({
+                "protocol": "udp",
+                "client_id": client_id,
+                "client_count": clients,
+                "payload_bytes": payload_bytes,
+                "request_num": req_num,
+                "connect_time_ms": 0.0,
+                "rtt_ms": round(rtt_ms, 4),
+                "timestamp": now_wall(),
+            })
 
+        client_socket.close()
+
+        with lock:
+            results.extend(worker_results)
+            
+    threads = []
+    for i in range(clients):
+        t = threading.Thread(target=client_worker, args=(i,))
+        threads.append(t)
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    results.sort(key=lambda r: (r["client_id"], r["request_num"]))
+    with open(log_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+        writer.writeheader()
+        writer.writerows(results)
+    
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI args.
