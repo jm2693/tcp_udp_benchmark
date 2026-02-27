@@ -123,7 +123,20 @@ def run_udp_client(host: str, port: int, log_path: str,
         
         for req_num in range(requests):
             t_send = now_mono()
-            client_socket.sendto(payload, (host, port))
+            try:
+                client_socket.sendto(payload, (host, port))
+            except OSError as e:
+                worker_results.append({
+                    "protocol": "udp",
+                    "client_id": client_id,
+                    "client_count": clients,
+                    "payload_bytes": payload_bytes,
+                    "request_num": req_num,
+                    "connect_time_ms": 0.0,
+                    "rtt_ms": -2.0,  # MTU error
+                    "timestamp": now_wall(),
+                })
+                continue
             try:
                 response, _ = client_socket.recvfrom(UDP_MAX)
             except socket.timeout:
@@ -134,7 +147,7 @@ def run_udp_client(host: str, port: int, log_path: str,
                     "payload_bytes": payload_bytes,
                     "request_num": req_num,
                     "connect_time_ms": 0.0,
-                    "rtt_ms": -1.0,
+                    "rtt_ms": -1.0, # timeout/lost packet error
                     "timestamp": now_wall(),
                 })
                 continue

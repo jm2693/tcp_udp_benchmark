@@ -10,7 +10,6 @@ import socket
 import threading
 
 UDP_MAX = 65535
-CSV_fields = ["protocol", "client_id", "client_count", "payload_bytes"]
 
 ##### Suggested helper functions; feel free to modify as needed. #####
 def now_wall() -> float:
