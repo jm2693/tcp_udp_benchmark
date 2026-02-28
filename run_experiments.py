@@ -5,6 +5,7 @@ import argparse
 import time
 import os
 import sys
+import csv
 import matplotlib
 import statistics
 from collections import defaultdict
