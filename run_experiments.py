@@ -9,10 +9,12 @@ import sys
 PROTOCOLS = ["tcp", "udp"]
 PAYLOAD_SIZES = [64, 512, 1024, 4096, 8192]
 CLIENT_COUNTS = [1, 10, 100, 1000]
-REQUESTS_PER_CLIENT = 100
+REQUESTS_PER_CLIENT = WORKITEMS_PER_CLIENT = 100
 
 PORT = 5001
-REMOTE_DIR = "~/tcp_udp_benchmark"
+REMOTE_DIR = "~/cs417/p1/tcp_udp_benchmark"
+REMOTE_RESULTS_DIR = os.path.join(REMOTE_DIR, "results")
+REMOTE_PLOTS_DIR = os.path.join(REMOTE_DIR, "plots")
 SERVER_STARTUP_DELAY = 2
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,9 +22,7 @@ RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 PLOTS_DIR = os.path.join(SCRIPT_DIR, "plots")
 
 
-class RemoteRunner:
-    """Handles all SSH and rsync operations using sshpass."""
-
+class RunRemote:
     def __init__(self, user, password_file, server_host, client_host):
         self.user = user
         self.password_file = os.path.abspath(password_file)
@@ -53,14 +53,15 @@ class RemoteRunner:
             host_dest, remote_cmd
         ]
 
-        print(f"  [SSH -> {host_dest}] {cmd[:80]}{'...' if len(cmd)>80 else ''}")
+        print(f"SSH into {host_dest} running ${cmd}")
         result = subprocess.run(full_cmd, capture_output=True, text=True)
 
         if check and result.returncode != 0 and not background:
-            print(f"  [STDERR] {result.stderr.strip()}")
+            print(f"STDERR: {result.stderr.strip()}")
 
         return result
 
+    # rsync a local file/dir to remote
     def rsync_to(self, host_dest, local_path, remote_path):
         cmd = self._sshpass_prefix() + [
             "rsync", "-avz", "-e",
@@ -68,33 +69,32 @@ class RemoteRunner:
             local_path,
             f"{host_dest}:{remote_path}"
         ]
-        print(f"  [RSYNC -> {host_dest}] {local_path} -> {remote_path}")
+        print(f"RSYNC: from {host_dest} {local_path} to {remote_path}")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
 
+    # rsync a remote file/dir to local
     def rsync_from(self, host_dest, remote_path, local_path):
-        """rsync a remote file/dir to local."""
         cmd = self._sshpass_prefix() + [
             "rsync", "-avz", "-e",
             f"ssh {' '.join(self._ssh_opts())}",
             f"{host_dest}:{remote_path}",
             local_path
         ]
-        print(f"  [RSYNC <- {host_dest}] {remote_path} -> {local_path}")
+        print(f"RSYNC: from {host_dest} {remote_path} to {local_path}")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
 
-    def verify_connectivity(self):
-        print("Verifying SSH connectivity...")
+    def test_connection(self):
+        print("Testing SSH connection")
         for dest in [self.server_dest, self.client_dest]:
             result = self.ssh_run(dest, "echo ok", check=False)
             if result.returncode != 0:
-                print(f"  ERROR: Cannot connect to {dest}")
-                print(f"  {result.stderr.strip()}")
+                print(f"ERROR: Cannot connect to {dest}")
+                print(f"{result.stderr.strip()}")
                 sys.exit(1)
-            print(f"  {dest} - OK")
+            print(f"{dest} : OK")
         print()
 
     def kill_server(self):
-        """Kill any running server.py on the server machine."""
         self.ssh_run(self.server_dest,
                      "pkill -f 'python3.*server.py' || true", check=False)
         time.sleep(0.5)
@@ -104,7 +104,7 @@ def setup(runner):
     os.makedirs(PLOTS_DIR, exist_ok=True)
 
     for dest in [runner.server_dest, runner.client_dest]:
-        runner.ssh_run(dest, f"mkdir -p {REMOTE_DIR}/results {REMOTE_DIR}/plots")
+        runner.ssh_run(dest, f"mkdir -p {REMOTE_RESULTS_DIR} {REMOTE_PLOTS_DIR}")
 
     runner.rsync_to(runner.server_dest,
                     os.path.join(SCRIPT_DIR, "server.py"),
@@ -116,9 +116,9 @@ def setup(runner):
 
 def run_experiment(runner, proto, payload_bytes, clients, requests):
     csv_name = f"{proto}_p{payload_bytes}_c{clients}_r{requests}.csv"
-    remote_csv = f"{REMOTE_DIR}/results/{csv_name}"
+    remote_csv = f"{REMOTE_RESULTS_DIR}/{csv_name}"
 
-    print(f"  {proto.upper()} | payload={payload_bytes}B | "
+    print(f"{proto.upper()} | payload={payload_bytes}B | "
           f"clients={clients} | requests={requests}")
 
     runner.kill_server()
@@ -149,7 +149,7 @@ def run_experiment(runner, proto, payload_bytes, clients, requests):
     runner.kill_server()
 
     if result.returncode != 0:
-        print(f"  [WARNING] Client exited with code {result.returncode}")
+        print(f"WARNING: Client exited with code {result.returncode}")
         if result.stderr:
             print(f"  {result.stderr.strip()[:200]}")
         return False
@@ -160,8 +160,7 @@ def run_experiment(runner, proto, payload_bytes, clients, requests):
 
 
 def run_all_experiments(runner):
-    """Run the full experiment matrix."""
-    print("========== RUNNING EXPERIMENTS ==========")
+    print("RUNNING EXPERIMENTS")
 
     total = len(PROTOCOLS) * len(PAYLOAD_SIZES) * len(CLIENT_COUNTS)
     current = 0
@@ -188,7 +187,6 @@ def run_all_experiments(runner):
     runner.kill_server()
 
     elapsed = time.monotonic() - overall_start
-    print(f"\n\n{'='*50}")
     print(f"Completed {total} experiments in {elapsed:.1f}s")
     print(f"Successful: {total - len(failed)}/{total}")
     if failed:
@@ -198,27 +196,19 @@ def run_all_experiments(runner):
 
 
 def collect_results(runner):
-    runner.rsync_from(runner.client_dest,
-                      f"{REMOTE_DIR}/results/",
-                      RESULTS_DIR + "/")
+    runner.rsync_from(runner.client_dest, f"{REMOTE_RESULTS_DIR}/", f"{RESULTS_DIR}/")
 
     csv_files = [f for f in os.listdir(RESULTS_DIR) if f.endswith(".csv")]
     print(f"Downloaded {len(csv_files)} CSV files.\n")
 
 
 def parse_args():
-    p = argparse.ArgumentParser(
-        description="TCP/UDP benchmark automation — run from local machine")
-    p.add_argument("--user", required=True,
-                   help="iLab username (NetID)")
-    p.add_argument("--password-file", required=True,
-                   help="Path to file containing iLab password (one line)")
-    p.add_argument("--server-host", required=True,
-                   help="Hostname of server iLab machine (e.g. ilab1.cs.rutgers.edu)")
-    p.add_argument("--client-host", required=True,
-                   help="Hostname of client iLab machine (e.g. ilab2.cs.rutgers.edu)")
-    p.add_argument("--port", type=int, default=5001,
-                   help="Port to use (default: 5001)")
+    p = argparse.ArgumentParser(description="TCP/UDP benchmark automation")
+    p.add_argument("--user", required=True, help="User netID")
+    p.add_argument("--password-file", required=True, help="Path to file containing iLab password")
+    p.add_argument("--server-host", required=True, help="Hostname of server iLab machine)")
+    p.add_argument("--client-host", required=True, help="Hostname of client iLab machine")
+    p.add_argument("--port", type=int, default=5001)
     return p.parse_args()
 
 
@@ -228,21 +218,21 @@ def main():
     global PORT
     PORT = args.port
 
-    runner = RemoteRunner(
+    runner = RunRemote(
         user=args.user,
         password_file=args.password_file,
         server_host=args.server_host,
         client_host=args.client_host,
     )
 
-    runner.verify_connectivity()
+    runner.test_connection()
     setup(runner)
     failed = run_all_experiments(runner)
     collect_results(runner)
 
-    print("Done!")
+    print("Completed running experiments")
     if not failed:
-        print("All experiments succeeded.")
+        print("All experiments succeeded")
     print(f"Next: run your plotting script against {RESULTS_DIR}/")
 
 
