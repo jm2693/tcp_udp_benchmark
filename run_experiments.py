@@ -159,12 +159,12 @@ def run_experiment(runner, proto, payload_bytes, clients, requests):
     if result.returncode != 0:
         print(f"WARNING: Client exited with code {result.returncode}")
         if result.stderr:
-            print(f"  {result.stderr.strip()[:200]}")
+            print(f"{result.stderr.strip()}")
         return False
-    else:
-        if result.stdout:
-            print(f"  {result.stdout.strip()}")
-        return True
+    
+    if result.stdout:
+        print(f"{result.stdout.strip()}")
+    return True
 
 
 def run_all_experiments(runner):
