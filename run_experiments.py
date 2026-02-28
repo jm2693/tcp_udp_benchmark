@@ -5,6 +5,10 @@ import argparse
 import time
 import os
 import sys
+import matplotlib
+import statistics
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 PROTOCOLS = ["tcp", "udp"]
 PAYLOAD_SIZES = [64, 512, 1024, 4096, 8192]
@@ -14,7 +18,6 @@ REQUESTS_PER_CLIENT = WORKITEMS_PER_CLIENT = 100
 PORT = 5001
 REMOTE_DIR = "~/cs417/p1/tcp_udp_benchmark"
 REMOTE_RESULTS_DIR = os.path.join(REMOTE_DIR, "results")
-REMOTE_PLOTS_DIR = os.path.join(REMOTE_DIR, "plots")
 SERVER_STARTUP_DELAY = 2
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -104,7 +107,7 @@ def setup(runner):
     os.makedirs(PLOTS_DIR, exist_ok=True)
 
     for dest in [runner.server_dest, runner.client_dest]:
-        runner.ssh_run(dest, f"mkdir -p {REMOTE_RESULTS_DIR} {REMOTE_PLOTS_DIR}")
+        runner.ssh_run(dest, f"mkdir -p {REMOTE_RESULTS_DIR}") # {REMOTE_PLOTS_DIR}")
 
     runner.rsync_to(runner.server_dest,
                     os.path.join(SCRIPT_DIR, "server.py"),
@@ -229,6 +232,7 @@ def main():
     setup(runner)
     failed = run_all_experiments(runner)
     collect_results(runner)
+    plot_results()
 
     print("Completed running experiments")
     if not failed:

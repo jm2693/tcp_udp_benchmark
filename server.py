@@ -51,10 +51,10 @@ def run_tcp_server(bind: str, port: int, log_path: str,
                 data = recv_data(client_socket, payload_bytes)
                 if not data or len(data) < payload_bytes:
                     break
+                client_socket.sendall(data)
         finally:
-            client_socket.sendall(data)
+            client_socket.close()
         
-        client_socket.close()
         
     with open(log_path, "w") as log_fp:
         log_event(log_fp, {
