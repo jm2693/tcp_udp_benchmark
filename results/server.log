@@ -1,0 +1,1 @@
+{"bind": "0.0.0.0", "clients": 1000, "event": "server_start", "payload_bytes": 8192, "port": 5001, "protocol": "udp", "requests": 100, "timestamp": 1772315353.8737078}

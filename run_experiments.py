@@ -71,24 +71,24 @@ class RunRemote:
 
     # rsync a local file/dir to remote
     def rsync_to(self, host_dest, local_path, remote_path):
-        cmd = self._sshpass_prefix() + [
-            "rsync", "-avz", "-e",
-            f"ssh {' '.join(self._ssh_opts())}",
+        ssh_cmd = f"sshpass -f {self.password_file} ssh {' '.join(self._ssh_opts())}"
+        cmd = [
+            "rsync", "-avz", "-e", ssh_cmd,
             local_path,
             f"{host_dest}:{remote_path}"
         ]
-        print(f"RSYNC: from {host_dest} {local_path} to {remote_path}")
+        print(f"RSYNC: from {local_path} to {host_dest}:{remote_path}")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
 
     # rsync a remote file/dir to local
     def rsync_from(self, host_dest, remote_path, local_path):
-        cmd = self._sshpass_prefix() + [
-            "rsync", "-avz", "-e",
-            f"ssh {' '.join(self._ssh_opts())}",
+        ssh_cmd = f"sshpass -f {self.password_file} ssh {' '.join(self._ssh_opts())}"
+        cmd = [
+            "rsync", "-avz", "-e", ssh_cmd,
             f"{host_dest}:{remote_path}",
             local_path
         ]
-        print(f"RSYNC: from {host_dest} {remote_path} to {local_path}")
+        print(f"RSYNC: from {host_dest}:{remote_path} to {local_path}")
         subprocess.run(cmd, capture_output=True, text=True, check=True)
 
     def test_connection(self):
